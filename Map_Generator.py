@@ -65,13 +65,11 @@ def create_corridors(rm, Rooms):
             right_marker = min(current_room.pos_x + current_room.width, other_room.pos_x + other_room.width)
             horizontal_overlap = list(range(left_marker, right_marker))
             if len(horizontal_overlap) > 0:
-                print("Overlap Found")
                 vertical_corridors(candidates, other, rm, horizontal_overlap)
             top_marker = max(current_room.pos_y, other_room.pos_y)
             bottom_marker = min(current_room.pos_y + current_room.height, other_room.pos_y + other_room.height)
             vertical_overlap = list(range(top_marker, bottom_marker))
             if len(vertical_overlap) > 0:
-                print("Overlap Found")
                 horizontal_corridors(candidates, other, rm, vertical_overlap)
     return candidates
                 
@@ -175,11 +173,9 @@ def create_map():
                 Map[start_pos[0]][start_pos[1]] = 2
                 Map[end_pos[0]][end_pos[1]] = 2 
                 distance = (start_pos[0] - end_pos[0]) + (start_pos[1] - end_pos[1])
-                print(distance)
                 next_pos = start_pos
                 for i in range(abs(distance)):
                     next_pos = [next_pos[0] + dir[0], next_pos[1] + dir[1]]
-                    print(next_pos)
                     Map[next_pos[0]][next_pos[1]] = 2 
 
     return Map
