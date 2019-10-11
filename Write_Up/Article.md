@@ -1,4 +1,4 @@
-#What is procedural generation?
+# What is procedural generation?
 
 Games are works of art, and often require hours of delicate and purposeful designing to craft their unique experiences. If you want to create expansive games, with many worlds and challenges for your players to attempt to overcome; this can require take 100s of hours of design alone. Sometimes the game you are creating can benefit from some random elements, in levels particularly. 
 
@@ -6,7 +6,7 @@ If your game relies on large amounts of loot and hordes of enemies, then some ra
 
 In this guide, I am going to walk you through the creation of a procedural generation system using Python and Pygame. I want to show you that it is not a lack of designing at all but instead you have to change what you are designing. The focus of this article will be the rules I am implementing to create my system. This is not a one technique field, and there are hundreds of variations on the ways procedural generation is implemented, I will do my best to signpost these as we go through. 
 
-#Setup
+# Setup
 
 I am using Pygame and Python to create this system, but I am going to keep the explanations as general as possible so that you can apply these principles to whichever development environments you enjoy working in. The point of this guide is to show you how you can implement procedural generation and some of the techniques and tactics involved. 
 
@@ -31,17 +31,12 @@ HEIGHT = TILE_SIZE * TILE_DOWN
 
 def create_map():
     Map = []
-    Rooms = []
-
-    for x in range(TILE_ACROSS):
+    for y in range(TILE_DOWN):
         row = []
-        for i in range(TILE_DOWN):
+        for x in range(TILE_ACROSS):
             row.append(0)
         Map.append(row)
-    
     return Map
-
-
 ~~~ 
 
 This is the start of my project, and it establishes our first set of rules. Using variables as much as possible to control the constants in our system makes it easy to change them later. The tiles I will be working with are 32x32 pixels, but if I change them and want 64x64 tiles I only need to change 1 variable and my whole map will adjust. The other variables, are dependent on the tile size, but the WIDTH and HEIGHT variables will dictate how big the map is in pixels. 
@@ -147,16 +142,17 @@ I have also updated the `create_map()` function to draw the rooms into the Map a
 ~~~python
 def create_map():
     Map = []
-    for x in range(TILE_ACROSS):
+    for y in range(TILE_DOWN):
         row = []
-        for i in range(TILE_DOWN):
+        for x in range(TILE_ACROSS):
             row.append(0)
         Map.append(row)
     Rooms = create_rooms()
     for rm in Rooms:
-        for i in range(rm[0].width):
-            for j in range(rm[0].height):
-                Map[rm[0].pos_x+i][rm[0].pos_y+j] = 1
+        for y in range(rm[0].height):
+            for x in range(rm[0].width):
+                Map[rm[0].pos_y+y][rm[0].pos_x+x] = 1
+    return Map
 ~~~
 
 With that, my map has been populated with rooms. 
@@ -167,8 +163,182 @@ With that, my map has been populated with rooms.
 
 Now that I have rooms in my level, it would be good to get them connected together right? To do that, I first have to think about some rules for my corridors. 
 
-A small caveat before the next part, there are so so many ways to do precedural generation and particularly there are lots of ways of connecting your dungeon together. As I go through the next bit I will try and point out to you where I could have used another method to connect the rooms and hopefully shed some light as to why I chose to do it the way I have. 
+A small caveat before the next part, there are so so many ways to do procedural generation and particularly there are lots of ways of connecting your dungeon together. As I go through the next bit I will try and point out to you where I could have used another method to connect the rooms and hopefully shed some light as to why I chose to do it the way I have. 
 
 I am creating a tile based game, and so my options for corridors are already limited. I can't have curved corridors (thank goodness, curve maths is tough), and to be honest diagonal corridors don't tend to look that good. If I had smaller tiles and therefore more, I could do diagonals but with my current layout they just end up looking like stairs. 
 
-So I am going to create 
+This means my corridors will be straight, which ties in well with my current map style. Next I had to decide how I wanted the rooms to connect. 
+
+Each room in my map could be connected to each of the others, but I suspect this would be messy and would leave my map feeling cluttered. To combat this I can limit the connections my rooms can have, but how many? To keep it simple, I am going to limit it to 4 possible connections: North, East, South and West. These are potential connections not a guarantee, I would like some degree of randomness in my connections. 
+
+The rules for my corridors will be...
+1. Each room can have a maximum of 4 connections
+2. They can go in one of these 4 directions:
+    + North
+    + East
+    + South
+    + West
+3. Before building the connection there will be a chance to skip it
+
+**Choosing the connections** 
+
+This brings me to the algorithmic section of this task, how to choose which rooms to connect to. Saving the information about each room will help me here. 
+
+Let's take a look at the following room and see how we can find connections for it. 
+
+![Another procedurally generated Map, with a room highlighted in the center.](images/Room_Corridors.png)
+
+With as many rooms as I have, there is never going to be a need for corners in the corridors. I should be able to find a connection in any of the directions using only a straight line. 
+
+The best way to do this is to test the other rooms to see if they meet 2 criteria. 
+1. It is in the given direction in relation to the current room
+    + i.e they have a lower y if it is a Northern connection
+2. It overlaps with the current room on either the x or y axis 
+    + i.e for a North connection they should overlap in the x axis. 
+
+Looking back at the map I showed you earlier... 
+
+![Another procedurally generated Map, with a room highlighted in the center.](images/Room_Corridors_North.png)
+
+The rooms highlighted in orange all meet the first criteria for a North connection, but not the second. The range of x co-ordinates covered by the rooms does not overlap with the range of the room we want to add a connection to. The room highlighted green however, does meet both criteria. I can test each room's x range for both north and south, but for east and west the overlap will be in the y range covered by the room. 
+
+Here is the code to choose the corridors; 
+
+~~~python 
+def create_corridors(rm, Rooms):
+    candidates = {"NORTH": None, "SOUTH": None, "EAST": None, "WEST": None}
+    for other in Rooms:
+        if other[0] != rm[0]:
+            current_room = rm[0]
+            other_room = other[0]
+            left_marker = max(current_room.pos_x, other_room.pos_x)
+            right_marker = min(current_room.pos_x + current_room.width, other_room.pos_x + other_room.width)
+            horizontal_overlap = list(range(left_marker, right_marker))
+            if len(horizontal_overlap) > 0:
+                vertical_corridors(candidates, other, rm, horizontal_overlap)
+            top_marker = max(current_room.pos_y, other_room.pos_y)
+            bottom_marker = min(current_room.pos_y + current_room.height, other_room.pos_y + other_room.height)
+            vertical_overlap = list(range(top_marker, bottom_marker))
+            if len(vertical_overlap) > 0:
+                horizontal_corridors(candidates, other, rm, vertical_overlap)
+    return candidates
+~~~
+
+If there are multiple rooms that overlap and meet the first criteria, then a decision has to be made. There are lots of ways to do this; shortest path, best angle... etc. I am going to go for the shortest path, so if there are 2 options that meet the 2 criteria I will select the one that is the closest in the direction we are currently working on. 
+
+Here are the functions to create horizontal and vertical corridors
+
+~~~python
+def vertical_corridors(candidates, other, rm, horizontal_overlap):
+    current_room = rm[0]
+    current_connections = rm[1]
+    other_room = other[0]
+    other_connections = other[1]
+    if current_room.pos_y > other_room.pos_y and other_connections["SOUTH"] == None and current_connections["NORTH"] != 0:
+        connector = candidates["NORTH"]
+        if connector == None:
+            candidates["NORTH"] = (other, horizontal_overlap)
+            other_connections["SOUTH"] = 0
+        else:
+            if other_room.pos_y + other_room.height > connector[0][0].pos_y + connector[0][0].height:
+                connector[0][1]["SOUTH"] = None
+                candidates["NORTH"] = (other, horizontal_overlap)
+                other_connections["SOUTH"] = 0
+    if current_room.pos_y < other_room.pos_y and other_connections["NORTH"] == None and current_connections["SOUTH"] != 0:
+        connector = candidates["SOUTH"]
+        if connector == None:
+            candidates["SOUTH"] = (other, horizontal_overlap)
+            other_connections["NORTH"] = 0
+        else:
+            if other_room.pos_y < connector[0][0].pos_y:
+                connector[0][1]["NORTH"] = None
+                candidates["SOUTH"] = (other, horizontal_overlap)
+                other_connections["NORTH"] = 0
+
+def horizontal_corridors(candidates, other, rm, vertical_overlap):
+    current_room = rm[0]
+    current_connections = rm[1]
+    other_room = other[0]
+    other_connections = other[1]
+    if current_room.pos_x > other_room.pos_x and other_connections["EAST"] == None and current_connections["WEST"] != 0:
+        connector = candidates["WEST"]
+        if connector == None:
+            candidates["WEST"] = (other, vertical_overlap)
+            other_connections["EAST"] = 0
+        else:
+            if other_room.pos_x < connector[0][0].pos_x:
+                connector[0][1]["EAST"] = None
+                candidates["WEST"] = (other, vertical_overlap)
+                other_connections["EAST"] = 0
+    if current_room.pos_x < other_room.pos_x and other_connections["WEST"] == None and current_connections["EAST"] != 0:
+        connector = candidates["EAST"]
+        if connector == None:
+            candidates["EAST"] = (other, vertical_overlap)
+            other_connections["WEST"] = 0
+        else:
+            if other_room.pos_x + other_room.width < connector[0][0].pos_x + connector[0][0].width:
+                connector[0][1]["WEST"] = None
+                candidates["EAST"] = (other, vertical_overlap)
+                other_connections["WEST"] = 0
+~~~
+
+The final consideration is where to actually put my corridors to connect the rooms, and I already have the information I need to do this. When comparing the overlaps, I am left with a range of overlapping values. You could randomly choose one of the values, which will correspond to a straight line in the x or y axis that connects both rooms. I decided to grab the middle value of the range and place the corridor there, I like randomness but I found this method looked more dungeon-y to me. This is an important thing to remember about procedural generation, its all subjective and about how you want it to look and feel. 
+
+This will be done in the create map function, and at this point it is just a path drawing algorithm. There is a little fiddling around with directions on drawing and start and end positions for the corridors. 
+
+~~~python
+def create_map():
+    Map = []
+    for y in range(TILE_DOWN):
+        row = []
+        for x in range(TILE_ACROSS):
+            row.append(0)
+        Map.append(row)
+    Rooms = create_rooms()
+    for rm in Rooms:
+        for y in range(rm[0].height):
+            for x in range(rm[0].width):
+                Map[rm[0].pos_y+y][rm[0].pos_x+x] = 1
+        corridors = create_corridors(rm, Rooms)
+        #Create the corridors on the map array
+        for key, value in corridors.items():
+            skip = secrets.randbelow(100) # Chance to skip drawing this corridor
+            if value is not None and value is not 0 and skip > 10:
+                dir = [0, 0]
+                start_pos = [rm[0].pos_x, rm[0].pos_y]
+                end_pos = [value[0][0].pos_x, value[0][0].pos_y]
+                mid_overlap = value[1][len(value[1])//2]
+                if key == "NORTH":
+                    dir[1] = -1
+                    start_pos[0] = mid_overlap
+                    start_pos[1] -= 1
+                    end_pos[0] = mid_overlap
+                    end_pos[1] += value[0][0].height
+                elif key == "SOUTH":
+                    dir[1] = 1
+                    start_pos[0] = mid_overlap
+                    start_pos[1] += rm[0].height
+                    end_pos[0] = mid_overlap
+                    end_pos[1] -= 1
+                elif key == "EAST":
+                    dir[0] = 1
+                    start_pos[0] += rm[0].width
+                    start_pos[1] = mid_overlap
+                    end_pos[0] -= 1
+                    end_pos[1] = mid_overlap
+                elif key == "WEST":
+                    dir[0] = -1
+                    start_pos[0] -= 1
+                    start_pos[1] = mid_overlap
+                    end_pos[0] += value[0][0].width
+                    end_pos[1] = mid_overlap
+                Map[start_pos[1]][start_pos[0]] = 2
+                Map[end_pos[1]][end_pos[0]] = 2 
+                distance = (start_pos[0] - end_pos[0]) + (start_pos[1] - end_pos[1])
+                next_pos = start_pos
+                for i in range(abs(distance)):
+                    next_pos = [next_pos[0] + dir[0], next_pos[1] + dir[1]]
+                    Map[next_pos[1]][next_pos[0]] = 2 
+
+    return Map
+~~~

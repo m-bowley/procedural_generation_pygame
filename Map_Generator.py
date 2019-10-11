@@ -128,20 +128,21 @@ def horizontal_corridors(candidates, other, rm, vertical_overlap):
 
 def create_map():
     Map = []
-    for x in range(TILE_ACROSS):
+    for y in range(TILE_DOWN):
         row = []
-        for i in range(TILE_DOWN):
+        for x in range(TILE_ACROSS):
             row.append(0)
         Map.append(row)
     Rooms = create_rooms()
     for rm in Rooms:
-        for i in range(rm[0].width):
-            for j in range(rm[0].height):
-                Map[rm[0].pos_x+i][rm[0].pos_y+j] = 1
+        for y in range(rm[0].height):
+            for x in range(rm[0].width):
+                Map[rm[0].pos_y+y][rm[0].pos_x+x] = 1
         corridors = create_corridors(rm, Rooms)
         #Create the corridors on the map array
         for key, value in corridors.items():
-            if value is not None and value is not 0:
+            skip = secrets.randbelow(100) # Chance to skip drawing this corridor
+            if value is not None and value is not 0 and skip > 10:
                 dir = [0, 0]
                 start_pos = [rm[0].pos_x, rm[0].pos_y]
                 end_pos = [value[0][0].pos_x, value[0][0].pos_y]
@@ -170,13 +171,13 @@ def create_map():
                     start_pos[1] = mid_overlap
                     end_pos[0] += value[0][0].width
                     end_pos[1] = mid_overlap
-                Map[start_pos[0]][start_pos[1]] = 2
-                Map[end_pos[0]][end_pos[1]] = 2 
+                Map[start_pos[1]][start_pos[0]] = 2
+                Map[end_pos[1]][end_pos[0]] = 2 
                 distance = (start_pos[0] - end_pos[0]) + (start_pos[1] - end_pos[1])
                 next_pos = start_pos
                 for i in range(abs(distance)):
                     next_pos = [next_pos[0] + dir[0], next_pos[1] + dir[1]]
-                    Map[next_pos[0]][next_pos[1]] = 2 
+                    Map[next_pos[1]][next_pos[0]] = 2 
 
     return Map
     

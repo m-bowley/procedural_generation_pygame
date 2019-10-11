@@ -8,11 +8,10 @@ dirt_tile = "sprite_01.png"
 
 Map = Map_Generator.create_map()
 
-
 def draw():
-    for i in range(WIDTH//32):
-        for j in range(HEIGHT//32):
-            if Map[i][j] == 0:
-                screen.blit(dirt_tile, (i*32, j*32))
+    for y in range(HEIGHT//32):
+        for x in range(WIDTH//32):
+            if Map[y][x] == 0:
+                screen.blit(dirt_tile, (x*32, y*32))
             else:
-                screen.blit(room_tile, (i*32, j*32))
+                screen.blit(room_tile, (x*32, y*32))
