@@ -302,7 +302,10 @@ def create_map():
         corridors = create_corridors(rm, Rooms)
         #Create the corridors on the map array
         for key, value in corridors.items():
-            skip = secrets.randbelow(100) # Chance to skip drawing this corridor
+            if len(corridors.items()) > 1:
+                skip = secrets.randbelow(100) # Chance to skip drawing this corridor
+            else: 
+                skip = 100
             if value is not None and value is not 0 and skip > 10:
                 dir = [0, 0]
                 start_pos = [rm[0].pos_x, rm[0].pos_y]
