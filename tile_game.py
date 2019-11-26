@@ -13,45 +13,113 @@ TILE_ACROSS = int(WIDTH/TILE_SIZE) # Use the previous variables to set a tile wi
 TILE_DOWN = int(HEIGHT/TILE_SIZE) # and tile height
 
 room_tile = "sprite_00.png"
-dirt_tile = "sprite_01.png"
-player = "player.png"
+south_corridor = "floor_1.png"
+north_corridor = "floor_2.png"
+dirt_tile = "dirt.png"
+enemy_basic = "enemy_00.png"
+enemy_boss = "enemy_01.png"
+chest = "chest.png"
+player_image = "player.png"
 
 Map = create_map()
 
 global screen_pos
+global playerTile
+global player_Offset
 screen_pos = [0, 0]
+player_Offset = [0, 0]
+playerTile = [0, 0]
+for x in range(len(Map)):
+    for y in range(len(Map[0])):
+        if Map[x][y] == 7:
+            playerTile = [x, y]
+            print(playerTile)
+
+player = Actor(player_image)
+
+
+
+def camera_follow():
+    global screen_pos, player_Offset, player
+    screen_pos[0] = playerTile[0] - (SCREEN_WIDTH//2)
+    screen_pos[1] = playerTile[1] - (SCREEN_HEIGHT//2)
+
+    if screen_pos[0] < 0: 
+        screen_pos[0] = 0
+        player_Offset[0] -= TILE_SIZE
+    elif screen_pos[0] + SCREEN_WIDTH > len(Map):
+        screen_pos[0] = len(Map)-SCREEN_WIDTH
+        player_Offset[0] += TILE_SIZE
+    else:
+        player_Offset[0] = 0
+    
+    if screen_pos[1] < 0:
+        screen_pos[1] = 0
+        player_Offset[1] -= 1
+    elif screen_pos[1] + SCREEN_HEIGHT > len(Map[0]):
+        screen_pos[1] = len(Map[0])-SCREEN_HEIGHT
+        player_Offset[1] += 1
+    else:
+        player_Offset[1] = 0
+
+camera_follow()
 
 def on_key_down(key):
-    global screen_pos
+    global playerTile
+    new_pos = [playerTile[0], playerTile[1]]
     if key == key.RIGHT:
-        screen_pos[0] += 1
+        new_pos[0] += 1
     if key == key.LEFT:
-        screen_pos[0] -= 1
+        new_pos[0] -= 1
     if key == key.UP:
-        screen_pos[1] -= 1
+        new_pos[1] -= 1
     if key == key.DOWN:
-        screen_pos[1] += 1
-    clamp_pos(screen_pos)
+        new_pos[1] += 1
+    if clamp_pos(new_pos) == True:
+        playerTile[0] = new_pos[0]
+        playerTile[1] = new_pos[1]
+    print(clamp_pos(new_pos))
+    camera_follow()
 
-def clamp_pos(pos):
-    if pos[0] < 0: 
-        pos[0] += 1
-    if pos[0] >= len(Map) - SCREEN_WIDTH:
-        pos[0] -= 1
-    if pos[1] < 0: 
-        pos[1] += 1
-    if pos[1] >= len(Map[0]) - SCREEN_HEIGHT:
-        pos[1] -= 1
+def clamp_pos(position):
+    global Map
+    tile = Map[position[0]][position[1]]
+    print(tile)
+    if tile == 1 or tile == 2 or tile == 3:
+        return True
+    elif tile == 0:
+        return False
 
-def draw():
+def draw_level():
+    global player
     for i in range(SCREEN_WIDTH):
         for j in range(SCREEN_HEIGHT):
             x = screen_pos[0] + i
             y = screen_pos[1] + j
             if Map[x][y] == 0:
                 screen.blit(dirt_tile, (i*32, j*32))
-            else:
+            elif Map[x][y] == 1:
                 screen.blit(room_tile, (i*32, j*32))
-    player_x = (SCREEN_WIDTH//2) * 32
-    player_y = (SCREEN_HEIGHT//2) * 32
-    screen.blit(player, (player_x, player_y))
+            elif Map[x][y] == 2:
+                screen.blit(south_corridor, (i*32, j*32))
+            elif Map[x][y] == 3:
+                screen.blit(north_corridor, (i*32, j*32))
+            elif Map[x][y] == 4:
+                screen.blit(room_tile, (i*32, j*32))
+                screen.blit(enemy_basic, (i*32, j*32))
+            elif Map[x][y] == 5:
+                screen.blit(room_tile, (i*32, j*32))
+                screen.blit(enemy_boss, (i*32, j*32))
+            elif Map[x][y] == 6:
+                screen.blit(room_tile, (i*32, j*32))
+                screen.blit(chest, (i*32, j*32))
+            elif Map[x][y] == 7:
+                screen.blit(room_tile, (i*32, j*32))
+
+            if x == playerTile[0] and y == playerTile[1]:
+                player.x = i*32+player.width//2
+                player.y = j*32+player.height//2
+
+def draw():
+    draw_level()
+    player.draw()

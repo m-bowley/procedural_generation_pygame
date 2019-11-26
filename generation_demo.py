@@ -11,9 +11,18 @@ enemy_basic = "enemy_00.png"
 enemy_boss = "enemy_01.png"
 chest = "chest.png"
 
+frame_count = 0
 Map = Map_Generator.create_map()
 
+def update():
+    global frame_count, Map
+    frame_count += 1
+    if frame_count == 60:
+        Map = Map_Generator.create_map()
+        frame_count = 0
+
 def draw():
+    global Map
     for x in range(WIDTH//32):
         for y in range(HEIGHT//32):
             if Map[x][y] == 0:

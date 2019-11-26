@@ -14,11 +14,15 @@ TILE_DOWN = int(HEIGHT/TILE_SIZE) # and tile height
 
 MAX_ROOM_SIZE = 7
 MIN_ROOM_SIZE = 3
-ROOM_PADDING = 2
+ROOM_PADDING = 3
 
 MAP_BORDER = 1
 
 NUMBER_OF_ROOMS = 12
+
+LOOT_ROOMS = 2
+
+MAX_ENEMIES = NUMBER_OF_ROOMS*2
 
 Room = namedtuple('Room', ['width', 'height', 'pos_x', 'pos_y'])
 
@@ -126,26 +130,82 @@ def horizontal_corridors(candidates, other, rm, vertical_overlap):
                 candidates["EAST"] = (other, vertical_overlap)
                 other_connections["WEST"] = 0
 
+def find_position(Room, Map):
+    x_pos = Room.pos_x + secrets.randbelow(Room.width - 1)
+    y_pos = Room.pos_y + secrets.randbelow(Room.height - 1)
+    while Map[x_pos][y_pos] != 1:
+        x_pos = Room.pos_x + secrets.randbelow(Room.width)
+        y_pos = Room.pos_y + secrets.randbelow(Room.height)
+    return x_pos, y_pos
+
+def placeBoss(Room, Map):
+    x_pos = Room.pos_x + (Room.width//2)
+    y_pos = Room.pos_y + (Room.height//2)
+
+    Map[x_pos][y_pos] = 5
+
+    return Map
+
+def placeEnemies(Rooms, Map):
+    biggestArea = 0
+    biggestRoom = ""
+    smallestArea = math.inf
+    smallestRoom = ""
+    
+    for rm in Rooms:
+        area = rm[0].width * rm[0].height
+        if area >= biggestArea:
+            biggestArea = area
+            biggestRoom = rm
+        if area <= smallestArea:
+            smallestArea = area
+            smallestRoom = rm
+    rooms_to_populate = Rooms
+    rooms_to_populate.remove(biggestRoom)
+    rooms_to_populate.remove(smallestRoom)
+
+    for i in range(NUMBER_OF_ROOMS - LOOT_ROOMS):
+        room = secrets.choice(rooms_to_populate)
+        amount_of_enemies = secrets.randbelow(4)
+        for enemy in range(amount_of_enemies):
+            x_pos, y_pos = find_position(room[0], Map)
+            Map[x_pos][y_pos] = 4
+        chest_x_pos, chest_y_pos = find_position(room[0], Map)
+        Map[chest_x_pos][chest_y_pos] = 6
+        rooms_to_populate.remove(room)
+    
+    boss_room = biggestRoom[0]
+    Map = placeBoss(boss_room, Map)
+    boss_enemies = secrets.randbelow(4) + 1
+
+    for henchman in range(boss_enemies):
+        hench_x, hench_y = find_position(boss_room, Map)
+        Map[hench_x][hench_y] = 4
+
+    player_x, player_y = find_position(smallestRoom[0], Map)
+    Map[player_x][player_y] = 7
+    return Map
+
 def create_map():
     Map = []
-    for y in range(TILE_DOWN):
+    for x in range(TILE_ACROSS):
         row = []
-        for x in range(TILE_ACROSS):
+        for y in range(TILE_DOWN):
             row.append(0)
         Map.append(row)
     Rooms = create_rooms()
     for rm in Rooms:
-        for y in range(rm[0].height):
-            for x in range(rm[0].width):
-                Map[rm[0].pos_y+y][rm[0].pos_x+x] = 1
-        corridors = create_corridors(rm, Rooms)
+        for x in range(rm[0].width):
+            for y in range(rm[0].height):
+                Map[rm[0].pos_x+x][rm[0].pos_y+y] = 1
+        rm[1] = create_corridors(rm, Rooms)
         #Create the corridors on the map array
-        for key, value in corridors.items():
-            if len(corridors.items()) > 1:
+        for key, value in rm[1].items():
+            if len(rm[1].items()) > 1:
                 skip = secrets.randbelow(100) # Chance to skip drawing this corridor
             else: 
                 skip = 100
-            if value is not None and value is not 0 and skip > 10:
+            if value is not None and value is not 0 and skip > 20:
                 dir = [0, 0]
                 start_pos = [rm[0].pos_x, rm[0].pos_y]
                 end_pos = [value[0][0].pos_x, value[0][0].pos_y]
@@ -156,31 +216,36 @@ def create_map():
                     start_pos[1] -= 1
                     end_pos[0] = mid_overlap
                     end_pos[1] += value[0][0].height
+                    tile = 3
                 elif key == "SOUTH":
                     dir[1] = 1
                     start_pos[0] = mid_overlap
                     start_pos[1] += rm[0].height
                     end_pos[0] = mid_overlap
                     end_pos[1] -= 1
+                    tile = 3
                 elif key == "EAST":
                     dir[0] = 1
                     start_pos[0] += rm[0].width
                     start_pos[1] = mid_overlap
                     end_pos[0] -= 1
                     end_pos[1] = mid_overlap
+                    tile = 2
                 elif key == "WEST":
                     dir[0] = -1
                     start_pos[0] -= 1
                     start_pos[1] = mid_overlap
                     end_pos[0] += value[0][0].width
                     end_pos[1] = mid_overlap
-                Map[start_pos[1]][start_pos[0]] = 2
-                Map[end_pos[1]][end_pos[0]] = 2 
+                    tile = 2
+                Map[start_pos[0]][start_pos[1]] = tile
+                Map[end_pos[0]][end_pos[1]] = tile 
                 distance = (start_pos[0] - end_pos[0]) + (start_pos[1] - end_pos[1])
                 next_pos = start_pos
                 for i in range(abs(distance)):
                     next_pos = [next_pos[0] + dir[0], next_pos[1] + dir[1]]
-                    Map[next_pos[1]][next_pos[0]] = 2 
-
+                    if Map[next_pos[0]][next_pos[1]] == 0:
+                        Map[next_pos[0]][next_pos[1]] = tile
+    Map = placeEnemies(Rooms, Map) 
     return Map
     
