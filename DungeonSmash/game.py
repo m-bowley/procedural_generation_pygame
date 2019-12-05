@@ -1,52 +1,64 @@
 from Map_Generator import create_map
-import pygame_gui
+from tiles import *
+from collections import namedtuple
 
+## Dimensions of the tiles - change if neccessary
+TILE_SIZE = 32
+
+## Window Parameters // Viewport
 SCREEN_WIDTH = 10
 SCREEN_HEIGHT = 8
-TILE_SIZE = 32 # Dimensions of the tiles - change if neccessary
 
+## Pygame Zero width and height for the game
 WIDTH = SCREEN_WIDTH * TILE_SIZE
 HEIGHT = SCREEN_HEIGHT * TILE_SIZE
 
-manager = pygame_gui.UIManager((WIDTH, HEIGHT))
-
-#gold_display = pygame_gui.elements.ui_text_box.UITextBox("Hello", relative_rect=Rect((WIDTH/4, HEIGHT/5), (10, 50)), manager=manager)
-
-# Map variables
-
-room_tile = "sprite_00.png"
-south_corridor = "floor_1.png"
-north_corridor = "floor_2.png"
-dirt_tile = "dirt.png"
-enemy_basic = "enemy_00.png"
-enemy_boss = "enemy_01.png"
-chest = "chest.png"
-player_image = "player.png"
-
-Map = create_map()
-
-global screen_pos
-global playerTile
+## Set up world co-ordinates
+## Top left corner of the screen
 screen_pos = [0, 0]
+## Player world co-ordinates
 playerTile = [0, 0]
+
+## Create the player Actor
+player = Actor(player_image)
+
+## Create the player variables
+class Player:
+    def __init__(self, actor, health, inventory):
+        self.Actor = actor
+        self.Health = health
+        self.Inventory = inventory
+    
+
+    def Attack(self):
+        global playerTile, Map
+        for y in range(-1, 2):
+            for x in range(-1, 2):
+                check_x = playerTile[0] + x
+                check_y = playerTile[1] + y
+                if Map[check_x][check_y] == 4 or Map[check_x][check_y] == 5:
+                    Map[check_x][check_y] = 1
+                    break
+
+player_object = Player(player, 100, {})
+
+
+## Generate the first Map
+Map = create_map()
+## Search the Map for spawn positions
 for x in range(len(Map)):
     for y in range(len(Map[0])):
         if Map[x][y] == 7:
             playerTile = [x, y]
-            print(playerTile)
-
-player = Actor(player_image)
-
-
+            Map[x][y] = 1
 
 def camera_follow():
-    global screen_pos, player_Offset, player
+    global screen_pos
     screen_pos[0] = playerTile[0] - (SCREEN_WIDTH//2)
     screen_pos[1] = playerTile[1] - (SCREEN_HEIGHT//2)
 
     if screen_pos[0] < 0: 
         screen_pos[0] = 0
-        player_Offset[0] -= TILE_SIZE
     elif screen_pos[0] + SCREEN_WIDTH > len(Map):
         screen_pos[0] = len(Map)-SCREEN_WIDTH
     
@@ -59,6 +71,8 @@ camera_follow()
 
 def on_key_down(key):
     global playerTile
+    if key == key.A :
+        player_object.Attack()
     new_pos = [playerTile[0], playerTile[1]]
     if key == key.RIGHT:
         new_pos[0] += 1
@@ -68,19 +82,21 @@ def on_key_down(key):
         new_pos[1] -= 1
     if key == key.DOWN:
         new_pos[1] += 1
-    if clamp_pos(new_pos) == True:
+    if movement_collision(new_pos) == True:
         playerTile[0] = new_pos[0]
         playerTile[1] = new_pos[1]
     camera_follow()
 
-def clamp_pos(position):
+def movement_collision(position):
     global Map
     tile = Map[position[0]][position[1]]
-    print(tile)
-    if tile == 1 or tile == 2 or tile == 3:
+    if tile == 1 or tile == 2 or tile == 3 or tile == 4:
         return True
     elif tile == 0:
         return False
+    elif tile == 6:
+        Map[position[0]][position[1]] = 1
+        print("Gold!")
 
 def draw_level():
     global player
@@ -115,4 +131,4 @@ def draw_level():
 def draw():
     draw_level()
     player.draw()
-    manager.draw_ui(screen.surface)
+

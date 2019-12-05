@@ -4,12 +4,13 @@ WIDTH = Map_Generator.WIDTH
 HEIGHT = Map_Generator.HEIGHT
 
 room_tile = "sprite_00.png"
-south_corridor = "floor_1.png"
-north_corridor = "floor_2.png"
-dirt_tile = "dirt.png"
-enemy_basic = "enemy_00.png"
-enemy_boss = "enemy_01.png"
+south_corridor = "sprite_00.png"
+north_corridor = "sprite_00.png"
+dirt_tile = "sprite_01.png"
+enemy_basic = "henchman.png"
+enemy_boss = "boss.png"
 chest = "chest.png"
+player_image = "player.png"
 
 Map = Map_Generator.create_map()
 
@@ -35,3 +36,4 @@ def draw():
                 screen.blit(chest, (x*32, y*32))
             elif Map[x][y] == 7:
                 screen.blit(room_tile, (x*32, y*32))
+                screen.blit(player_image, (x*32, y*32))
